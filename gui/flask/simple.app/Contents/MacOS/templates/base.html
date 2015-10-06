@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="us">
+<head>
+    <meta charset="utf-8">
+    {% if animal is defined %}
+    <title>{{ animal }}</title>
+    {% else %}
+    <title>MWorks Client</title>
+    {% endif %}
+    <script type="text/javascript"
+        src="{{ url_for('static', filename='js/jquery.js') }}"></script>
+    <script type="text/javascript"
+        src="{{ url_for('static', filename='js/jquery-ui.js') }}"></script>
+    <script type="text/javascript"
+        src="{{ url_for('static', filename='js/jquery.pnotify.js') }}"></script>
+    <script type="text/javascript"
+        src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
+    <script type="text/javascript"
+        src="{{ url_for('static', filename='js/knockout.js') }}"></script>
+    <script type="text/javascript"
+        src="{{ url_for('filetree.static', filename='js/jqueryFileTree.js') }}"></script>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/smoothness/jquery-ui.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/jquery.pnotify.default.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/jquery.pnotify.default.icons.css') }}" />
+
+    <link href="{{ url_for('filetree.static', filename='css/jqueryFileTree.css') }}" rel="stylesheet"></link>
+
+    <script type="text/javascript"
+        src="{{ url_for('static', filename='js/d3.v2.js') }}"></script>
+    <script type="text/javascript"
+        src="{{ url_for('static', filename='js/nv.d3.min.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/nv.d3.css') }}" />
+
+    <style>
+        body {
+            font: 62.5% "Trebuchet MS", sans-serif;
+        }
+
+        #create_variables_form {
+            display: inline-block;
+        }
+
+        #chart {
+            height: 500px;
+        }
+        
+        .control_column {
+            float: left;
+            min-width: 250px;
+        }
+
+        .multicolumn_block {
+            overflow: hidden;
+        }
+
+        .message_list {
+            list-style: none;
+        }
+
+        .note_list {
+            list-style: none;
+        };
+    </style>
+
+    {% block head %}
+    {% endblock %}
+
+    <script type="text/javascript" src="https://apis.google.com/js/client.js?onload=handleClientLoad"></script>
+    <!--
+    <script type="text/javascript" src="{{ url_for('static', filename='js/html2canvas.js') }}"></script>
+    -->
+    <script type="text/javascript" src="{{ url_for('static', filename='js/report.js') }}"></script>
+
+    <script type="text/javascript"
+        src="{{ url_for('static', filename='js/client.js') }}"></script>
+
+    <script>
+        $.pnotify.defaults.styling = "jqueryui";
+        $.pnotify.defaults.maxonscreen = 5;
+        //$.pnotify.defaults.nonblock = true;
+        var client; // make this global
+        var tids = [];
+
+        function start_graphing() {
+            if (!tids.length) {
+                //$.pnotify({title: 'starting graphing'});
+                $('#graph_status').text('graphing');
+                for (i in client.graphs) {
+                    client.graphs[i].start();
+                };
+                tids.push(window.setInterval(client.redraw_graphs, 1000));
+            };
+        };
+
+        function stop_graphing() {
+            //$.pnotify({title: 'stopping graphing'});
+            $('#graph_status').text('paused');
+            while (tids.length) {
+                window.clearInterval(tids.pop());
+            };
+        };
+
+        function store_reference() {
+            for (gi in client.graphs) {
+                g = client.graphs[gi];
+                refs = {};
+                for (ki in g.data) {
+                    k = g.data[ki]['key'];
+                    v = client.varbyname(k).latest_value();
+                    if (v !== null) {
+                        g.data[ki]['ref'] = v;
+                        refs[k] = v;
+                    };
+                };
+                if (true) {
+                    s = 'Set graph ' + gi + ' reference to:\n'
+                    for (k in refs) {
+                        s += '' + k + ' = ' + refs[k] + '\n';
+                    };
+                    client.info(s);
+                };
+            };
+        };
+
+
+        {% block head_js %}
+        {% endblock %}
+
+        $(document).ready(function () {
+            console.log("document ready");
+            $(window).keydown(function (event) {
+                if (event.which == 27) {  // ESC
+                    $.pnotify_remove_all();
+                };
+            });
+
+            client = mworks.client();
+            client.connect_socket();
+            // need to template the toolbar, and other tags that require id
+            $('#toolbar').tabs();
+            $('#display').tabs({
+                activate: function (event, ui) {
+                    //console.log({'event': event, 'ui': ui});
+                    if ($('a', ui.newTab).attr('href') == '#disp_graphs') {
+                        start_graphing();
+                    } else {
+                        stop_graphing();
+                    };
+                },
+            });
+
+            $('#filetree').fileTree({
+                root: '~/Repositories/coxlab/new_protocols',
+                script: "{{ url_for('filetree.sfiles') }}",
+            }, function (file) {
+                $('#filetree').dialog('close');
+                client.experiment_path(file);
+                client.load_experiment();
+            });
+
+            $('#filetree').dialog({
+                autoOpen: false,
+                height: 400,
+            });
+
+            reports.post_callback = function (result, msg) {
+                body = {
+                    title: 'Report status',
+                    text: msg + ':' + result['status'],
+                };
+                if (result['error']) {
+                    body['type'] = 'error';
+                    body['hide'] = false;
+                };
+                $.pnotify(body);
+            };
+
+            client.select_experiment = function () {
+                $('#filetree').dialog('open');
+            };
+
+            client.error = function (msg) {
+                $.pnotify({
+                    title: 'Error',
+                    text: msg,
+                    type: 'error',
+                    hide: false,
+                });
+            };
+
+            client.info = function (msg) {
+                $.pnotify({
+                    title: 'Info',
+                    text: msg,
+                });
+            };
+            // must be done AFTER redefining select_experiment :-/ 
+            client.apply_binding('#toolbar');
+            client.apply_binding('#disp_variables');
+            client.apply_binding('#disp_graphs');
+            client.apply_binding('#disp_messages');
+            client.apply_binding('#disp_notes');
+            client.bind_variables('[var-bind]');
+
+            {% block documentready_js %}
+            {% endblock %}
+            {% if session_config is defined %}
+            client.load_config({{ session_config|tojson|safe }});
+            {% endif %}
+            $(client).on('after:variableset')
+            $(window).focus(function () {
+                if ($('#disp_graphs').css('display') !== 'none') {
+                    start_graphing();
+                };
+            });
+            $(window).blur(stop_graphing);
+            window.onbeforeunload = function () {
+                return "Report posted?\nVaribleset saved?\nDatafile stream closed?";
+            };
+        });
+    </script>
+</head>
+<body>
+    <div class="client" data-bind="with: client">
+        <div id="toolbar" class="toolbar">
+            <ul>
+                <li><a href='#tb_connection'>Connection</a></li>
+                <li><a href='#tb_experiment'>Experiment</a></li>
+                <li><a href='#tb_variableset'>Variableset</a></li>
+                <li><a href='#tb_datafile'>Datafile</a></li>
+                <li><a href='#tb_report'>Report</a></li>
+            </ul>
+            <!-- Connection -->
+            <div id="tb_connection" class="tb_connection">
+                <span>Socket: 
+                <span class="socket_connected"
+                    data-bind="text: socket_connected_verbose, style: { color: socket_connected() ? 'green' : 'red' }"></span></span>
+                <span>Server:
+                <span class="connected"
+                    data-bind="text: connected_verbose, style: { color: connected() ? 'green' : 'red' }"></span></span>
+                <span>Host:
+                <input class="host" title="host"
+                data-bind="value: host"></input></span>
+                <span>Port:
+                <input class="port" title="port"
+                    data-bind="value: port"></input></span>
+                <span>User:
+                <input class="user" title="user"
+                    data-bind="value: user"></input></span>
+                <button class="connect"
+                    data-bind="text: toggle_connect_label,
+                        click: toggle_connect">
+                </button>
+                <input class="start_server" type="checkbox"
+                    title="Start Server?"
+                    data-bind="checked: startserver">Start Server</input>
+            </div>
+
+            <!-- Experiment -->
+            <div id="tb_experiment" class="tb_experiment">
+                <button class="running"
+                    title="Start/Stop"
+                    data-bind="text: toggle_running_label,
+                        click: toggle_running">
+                </button>
+                <button class="paused"
+                    title="Pause/Resume"
+                    data-bind="text: toggle_paused_label,
+                        click: toggle_paused">
+                </button>
+                <span class="experiment_name"
+                    data-bind="text: experiment_name"></span>
+                <input class="experiment_path"
+                    data-bind="value: experiment_path"></input>
+                <button class="load_experiment"
+                    data-bind="click: load_experiment">Load</button>
+                <button class="close_experiment"
+                    data-bind="click: close_experiment">Close</button>
+                <button class="select_experiment"
+                    data-bind="click: select_experiment">Select Experiment
+                </button>
+                <span>Protocol:
+                <select class="protocol"
+                    title="Select protocol"
+                    data-bind="options: protocols, value: protocol">
+                </select></span>
+            </div>
+
+            <!-- Variables -->
+            <div id="tb_variableset" class="tb_variableset">
+                <span>Variables:
+                <select class="variableset"
+                    title="Select variableset"
+                    data-bind="options: variablesets,
+                        value: variableset">
+                </select>
+                <input class="variableset_overwrite" type="checkbox"
+                    title="Overwrite Variables?"
+                    data-bind="checked: variableset_overwrite">Overwrite?</input>
+                <button class="load_variableset"
+                    title="Load Variables"
+                    data-bind="click: load_variableset">Load</button>
+                <button class="save_variableset"
+                    title="Save Variables"
+                    data-bind="click: save_variableset">Save</button>
+                    <form id='create_variables_form'
+                        data-bind="submit: function (f) { client.create_variableset($('.name', f).val()); }">
+                        Create New Variableset:
+                        <input class="name" title="Type in name of variableset to create, press Enter to create"></input>
+                    </form>
+                </span>
+            </div>
+
+            <!-- Datafile -->
+            <div id="tb_datafile" class="tb_datafile">
+                <span>Datafile:
+                    <span data-bind="text: datafile_saving_verbose, style: { color: datafile_saving() ? 'green' : 'red' }"></span>
+                <input class="datafile" title="datafile name or path" data-bind="value: datafile"></input>
+                <input class="datafile_overwrite" type="checkbox"
+                    title="Overwrite Datafile?"
+                    data-bind="checked: datafile_overwrite">Overwrite?</input>
+                <button class="open_datafile" data-bind="click: open_datafile">
+                Start Stream</button>
+                <button class="close_datafile" data-bind="click: close_datafile">
+                Close Stream</button>
+                </span>
+            </div>
+            <div id="tb_report" class="tb_report">
+                User: <input data-bind="value: user"></input>
+                <button onclick="reports.report(client)">Publish Report</button>
+            </div>
+        </div> <!-- toolbar -->
+        <div id="display" class="toolbar">
+            <ul>
+                <li><a href='#disp_variables'>Variables</a></li>
+                <li><a href='#disp_controls'>Controls</a></li>
+                <li><a href='#disp_graphs'>Graphs</a></li>
+                <li><a href='#disp_messages'>Messages</a></li>
+                <li><a href='#disp_notes'>Notes</a></li>
+                {% block display_menu %}
+                {% endblock %}
+            </ul>
+            <div id="disp_variables" class="disp_variables">
+                <table>
+                    <thead><tr>
+                            <th>Name</th><th>Latest</th>
+                    </tr></thead>
+                    <tbody data-bind="foreach: vars">
+                        <tr>
+                            <td data-bind="text: name"></td>
+                            <td><input class="variable_edit" data-bind="value: latest_value"/></td>
+                            <!-- <td data-bind="text: latest_value"</td> -->
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="disp_controls" class="disp_controls">
+                {% block display_controls %}
+                {% endblock %}
+            </div>
+            <div id="disp_graphs" class="disp_graphs">
+                <div>
+                    <button class="control_button" title="start graphing"
+                        onclick="start_graphing()">Start Graphing</button>
+                    <button class="control_button" title="stop graphing"
+                        onclick="stop_graphing()">Stop Graphing</button>
+                    <input class="control_check" type="checkbox"
+                        title="Graph Relative to Reference"
+                        data-bind="checked: client.graph_ref">Graph Relative to Reference</input>
+                    <button class="store_reference" title="store reference"
+                        onclick="store_reference()">Store Reference</button>
+                    <span id="graph_status"></span>
+                </div>
+                <div id='chart_div'>
+                    <svg id='chart'></svg>
+                </div>
+            </div>
+            {% block display_items %}
+            {% endblock %}
+            <div id="disp_messages" class="disp_messages">
+                <button class="control_button" title="clear messages"
+                    data-bind="click: clear_messages">Clear Messages</button>
+                N Messages: <input type="number" title="Show N recent messages"
+                data-bind="value: max_messages"></input>
+                Verbosity: <input type="number" title="lower = more messages"
+                data-bind="value: message_verbosity"></input>
+                Notification Threshold: <input type="number" title="lower = more notifications"
+                data-bind="value: message_error_verbosity"></input>
+                <ul class="message_list" data-bind="foreach: messages">
+                    <li data-bind="style: { color: color }">
+                        <span data-bind="text: stype"></span>:
+                        <span data-bind="text: message"></span>
+                    </li>
+                </ul>
+            </div>
+            <div id="disp_notes" class="disp_notes">
+                <form id='add_note_form'
+                    data-bind="submit: function (f) { client.add_note($('.note', f).val()); $('.note', f).val('');}">
+                    Note:
+                    <input class="note" title="Type in a note, press Enter to create"></input>
+                </form>
+                <ul class="note_list" data-bind="foreach: notes">
+                    <li>
+                        <span data-bind="text: $data"></span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    {% block body %}
+    {% endblock %}
+    <div id="filetree" title="Select a file"></div>
+</body>
+</html>

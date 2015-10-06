@@ -1,0 +1,4 @@
+{
+CFBundleIconFile = "evil.icns";
+CFBundleExecutable = "launch.sh";
+}

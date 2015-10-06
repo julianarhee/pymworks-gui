@@ -1,0 +1,152 @@
+mworks.graph = function (client, vars, type) {
+    var graph = this;
+    graph.vars = vars;
+    graph.type = type;
+    graph.client = client;
+    graph.data = [];
+
+
+    graph.chart = null;
+
+    if(! $("#graphGeneral").is(":checked")){
+        for(i = 0; i < vars.length; i++){
+            vars[i] = "session_".concat(vars[i]);
+        }
+    }
+
+    console.log(vars);
+
+    graph.build = function () {
+        // setup data
+        for (i in vars) {
+            graph.data.push({'key': vars[i], 'values': [], 'ref': 0});
+
+            client.varbyname(vars[i]).n = 100;
+            //console.log(client.varbyname(vars[i]).n);
+        };
+
+        //console.log("graph.data" + graph.data);
+        // build chart
+        //explains how this works: http://nvd3.org/examples/stackedArea.html
+        switch (graph.type) {
+            case 'stacked':
+                graph.chart = nv.models.stackedAreaChart()
+                    .x(function(d) { return d[0] })
+                    .y(function(d) { return d[1] });
+                graph.chart.xAxis.tickFormat(d3.format('i'));
+                graph.chart.yAxis.tickFormat(d3.format('i'));
+                break;
+            default:
+                throw "Unknown graph type: " + graph.type;
+                break;
+        };
+        //redraw();
+        nv.utils.windowResize(graph.chart.update);
+    };
+
+    graph.build();
+
+    graph.getvalue = function (di, index, with_ref) {
+        if (index >= graph.data[di]['values'].length) {
+            //console.log("di: " + di);
+            //console.log(graph.data)
+            //console.log(graph.data[di]);
+            v = graph.data[di]['values'][graph.data[di]['values'].length - 1];
+            r = false;
+        } else {
+            v = graph.data[di]['values'][index];
+            r = true;
+        };
+        if (with_ref) {
+            return [r, [v[0], v[1] - graph.data[di]['ref']]];
+        } else {
+            //console.log([r,v]);
+            return [r, v];
+        };
+    };
+
+    graph.order_data = function (with_ref) {
+        // copy data
+        mi = 0;
+        inds = {};
+        cvs = {};
+        for (i in graph.data) {
+            vn = graph.data[i]['key']
+            vs = [];
+            v = graph.client.varbyname(vn);
+            evs = v.events();
+            for (vi in evs) {
+                // TODO value checking
+                vs.push([evs[vi].time, evs[vi].value]);
+            };
+            vs.sort(function(a, b) { return a[0] - b[0]; });
+            graph.data[i]['values'] = vs;
+            mi = Math.max(mi, vs.length);
+            //inds[graph.data[i]['key']] = 0;
+            inds[i] = 0;
+            cvs[i] = [];
+        };
+        // prep data
+        alldone = false;
+        rs = {};
+        values = {};
+        while (!alldone) {
+            // get values for all data
+            mt = Infinity;
+            mdi = 0;
+            for (di in inds) {
+                r = graph.getvalue(di, inds[di], with_ref);
+                rs[di] = r[0];
+                values[di] = r[1];
+                // find one with lowest time
+                if ((r[1][0] < mt) && (r[0])) {
+                    mt = r[1][0];
+                    mdi = di;
+                };
+            };
+            alldone = true;
+            for (i in rs) {
+                alldone = alldone && (!rs[i]);
+            };
+            if (alldone) {
+                break;
+            };
+            // match all others to that
+            for (di in inds) {
+                cvs[di].push([mt, values[di][1]]);
+            };
+            // increment that time for that one
+            inds[mdi] += 1;
+            alldone = true;
+            for (i in rs) {
+                alldone = alldone && (!rs[i]);
+            };
+        };
+
+        for (di in cvs) {
+            graph.data[di]['values'] = cvs[di];
+            graph.data[di]['values'].sort(function(a, b) { return a[0] - b[0] });
+        };
+    };
+
+    graph.redraw = function (with_ref) {
+        graph.order_data(with_ref);
+        d3.select('#chart')
+            .datum(graph.data)
+          .transition().duration(500);
+            //.call(graph.chart);
+        graph.chart.update;
+    };
+    
+    graph.start = function () {
+        graph.order_data();
+        d3.select('#chart')
+            .datum(graph.data)
+          .transition().duration(500)
+            .call(graph.chart);
+    };
+
+
+
+    return graph;
+};

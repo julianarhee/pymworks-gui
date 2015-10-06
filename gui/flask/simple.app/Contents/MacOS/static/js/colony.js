@@ -85,24 +85,17 @@ var colony = (function () {
 
     colony.remove_animal = function () {
         i = colony.animals.indexOf(this);
-        if(confirm("Are you sure you want to remove this animal?")){
-            console.log(i);
-            if (i !== -1) {
-                colony.animals.splice(i, 1);
-                if (colony.selected() === this) {
+        if (i !== -1) {
+            colony.animals.splice(i, 1);
+            if (colony.selected() === this) {
                 colony.selected(colony.animals().length ? colony.animals()[0] : undefined);
-                };
+            };
             console.log({'removing animal': this});
             $.pnotify({title: 'Removed animal', text: this.name()});
-            } 
-        else {
+        } else {
             console.log({'failed to find animal to remove': this});
             $.pnotify({title: 'Failed to find animal to remove', text: this, type: 'error', hide: false});
-            };
-        }
-        colony.save_animals();
-
-
+        };
     };
 
     colony.save_animals = function () {
@@ -122,9 +115,6 @@ var colony = (function () {
             console.log({'save_animals:data': data});
             //$.getJSON('/save_animals', {'data': data}, colony.saved_animals_callback);
             $.post('/save_animals', {'data': data}, colony.saved_animals_callback, "json")
-            
-            location.reload();
-            //refreshes the page, else it doesn't save
         } catch (error) {
             $.pnotify({title: 'Error saving animals', text: '' + error, type: 'error', hide: false});
         };

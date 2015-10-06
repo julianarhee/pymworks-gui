@@ -19,8 +19,6 @@ Write
 
 import sys
 sys.path = ['/Users/labuser/Repositories/braingram/new_pymworks', ] + sys.path
-sys.path = ['/Users/labuser/Repositories/pymworks-gui/'] + sys.path  
-print sys.path
 
 import glob
 import json
@@ -67,8 +65,7 @@ import pymworks
 app = flask.Flask('pymworks client')
 # add additional home folder templates
 template_loader = jinja2.ChoiceLoader([
-    #jinja2.FileSystemLoader(os.path.expanduser('~/.pymworks/templates')),
-    jinja2.FileSystemLoader(os.path.expanduser('~/Repositories/protocols/behavior/templates')),
+    jinja2.FileSystemLoader(os.path.expanduser('~/.pymworks/templates')),
     app.jinja_loader,
 ])
 app.jinja_loader = template_loader
@@ -94,9 +91,8 @@ def load_animals():
 
 def fnfilter(fn):
     bn = os.path.basename(fn)
-    return (len(bn) and bn[0] != '.' #and
-            #os.path.splitext(fn)[1].lower() == '.xml'
-            )
+    return (len(bn) and bn[0] != '.' and
+            os.path.splitext(fn)[1].lower() == '.xml')
 
 
 def dfilter(d):

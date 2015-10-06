@@ -20,6 +20,9 @@
     <script type="text/javascript"
         src="{{ url_for('filetree.static', filename='js/jqueryFileTree.js') }}"></script>
 
+    <script type="text/javascript" 
+        src="{{ url_for('static', filename='js/canvasjs.min.js') }} "></script><!--draws the area chart-->
+
     <link rel="stylesheet" href="{{ url_for('static', filename='css/smoothness/jquery-ui.css') }}" />
     <link rel="stylesheet" href="{{ url_for('static', filename='css/jquery.pnotify.default.css') }}" />
     <link rel="stylesheet" href="{{ url_for('static', filename='css/jquery.pnotify.default.icons.css') }}" />
@@ -58,9 +61,14 @@
             list-style: none;
         }
 
+        .ui-pnotify {
+            top: 40%;
+        };
+
         .note_list {
             list-style: none;
         };
+
     </style>
 
     {% block head %}
@@ -82,6 +90,182 @@
         var client; // make this global
         var tids = [];
 
+        window.onload = function(){
+            //makeDropDown();
+
+        };
+
+
+        function makeIndividualGraphDropdown(){
+            //make the dropdown for graphing the individual graph
+            for(i in client.vars()){
+                var option = document.createElement("option");
+                option.text = client.vars()[i].name();
+                //console.log(option);
+                document.getElementById("variablesGraphDropdown").add(option);
+            }
+
+        }
+
+
+        var allVariablesList = [];
+        function makeVariableList(){
+            //Make the variable list for the add a variable auto-complete text box
+            for(i in client.vars()){
+                allVariablesList.push(client.vars()[i].name());
+            }
+        }
+
+
+        function listVariables(){
+            //auto complete the add variable textbox 
+            $( "#addVariableInput" ).autocomplete({
+
+                source: allVariablesList
+            });
+        }
+
+        function isInVariableList(variable){
+            //A helper function for addNewVariable
+            for(i in client.vars()){
+                if(client.vars()[i].name() == variable){
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function addNewVariable(){
+            var variableName = $("#addVariableInput").val();
+
+            if( ! isInVariableList(variableName)){
+                //If the variable does not exist: throw a exception
+                client.throw("The variable " + variableName +" does not exist.");
+                alert("The variable " + variableName +" does not exist.");
+            }
+            else{
+                if(confirm("Are you sure you want to add variable " + variableName + " to control?")){
+                    $("#addVariableInput").val("");
+                    var types = document.getElementById("addedVariableType");
+                    var variableType = types.options[types.selectedIndex].value;
+                    //console.log(variableType);
+                    if(variableType == "textBox"){
+                        //If the variable the using is adding should be tracked using a textbox
+                        $("#addedVariables").append("<div var-bind = '" + variableName + "'" + "class = 'addedVariables'>" + variableName + "<a href = '#' onclick = 'removeElement(this)'> remove </a>" + "</div>");
+
+                        client.bind_variables('.addedVariables');
+                        //Bind the variables in the class "addedVariables"
+                    }
+
+                    else if (variableType == "checkBox"){
+                        //If the variable should be tracked using a checkbox
+                        $("#addedVariables").append("<div var-bind = 'check:" + variableName + "'" + "class = 'addedVariables'>" + variableName + "<a href = '#' onclick = 'removeElement(this)'> remove </a>" + "</div>" );
+                        client.bind_variables('.addedVariables');
+                    }
+
+                    else if (variableType == "inc_dec"){
+                        $("#addedVariables").append("<div var-bind = '" + variableName + "'" + "class = 'addedVariables inc_dec'>" + variableName + "<a href = '#' onclick = 'removeElement(this)'> remove </a>" + "</div>" );
+                        client.bind_variables('.addedVariables');
+                        $(".inc_dec").each(function(){
+                            if($(this).get(0).innerHTML.indexOf("<button") == -1){
+                                //Using escape is very important. Just staggering '' & "" is not enough
+                                $(this).append("<button onclick = \"incrementValue(\'" + variableName + "\');\">+</button>");
+                                $(this).append("<button onclick = \"decrementValue(\'" + variableName + "\');\">-</button>");
+                            }
+                        });
+
+                    }
+                    //$(this).append("<a href = '#' onclick = 'removeElement()'>remove</a>");
+                    
+
+                }
+                else{
+                    //If the user does not confirm then do nothing
+                }
+            }
+
+        }
+
+        function incrementValue(variableName){
+            $(".addedVariables").each(function(){
+                //console.log($(this).find("input").text());
+                if($(this).text() == variableName.concat("+-")){
+                    //console.log(variableName);
+                    var inputValue = $(this).find("input").val();
+                    //console.log(inputValue);
+                    if(inputValue == ""){
+                        $(this).find("input").val(1);
+                    }
+                    else{
+
+                        $(this).find("input").val(parseInt(inputValue) + 1);
+                    }
+                } 
+            });
+        }
+
+        function decrementValue(variableName){
+            $(".addedVariables").each(function(){
+                //console.log($(this).text());
+                if($(this).text() == variableName.concat("+-")){
+                    //console.log(variableName);
+                    var inputValue = $(this).find("input").val();
+                    //console.log(inputValue);
+                    if(inputValue == ""){
+                        $(this).find("input").val(0);
+                    }
+                    else{
+                        $(this).find("input").val(parseInt(inputValue) - 1);
+                    }
+                } 
+            });
+        }
+
+        function removeElement(element){
+            $(element.closest("div")).remove()
+            //$(element).remove();
+        }
+
+        function saveAddedVariables(){
+            var addedVariables = $("#addedVariables").html();
+            
+            var selectedGraphs = [];
+            $("input:checkbox[name=stack_graph_variables]:checked").each(function () {
+                selectedGraphs.push($(this).val());
+            });
+            addedVariables = addedVariables + "<p id = \"graphVariables\">" + selectedGraphs + "</p>";
+/*            addedVariables = addedVariables + $("#stack_graph_variables").html();
+            addedVariables = addedVariables + $("#VariablesToBeReported").html();*/
+            var selected = [];
+            $("input:checkbox[name=variablesToBeAdded]:checked").each(function () {
+                selected.push($(this).val());
+            });
+            addedVariables = addedVariables + "<p id = \"reportVariables\">" + selected + "</p>";
+            // var uri = "data:application/octet-stream;base64,"+btoa(addedVariables);
+
+            // document.location = uri;
+            var time = new Date();
+            var fileName = "".concat(time.getFullYear()) + (time.getMonth() + 1) + time.getDate() + time.getHours() + time.getMinutes();
+            
+            $("#saveChanges").attr("href", 'data:text/plain;base64,' + window.btoa(addedVariables)).attr("download", fileName + ".html");
+                //$(this).attr("href", 'data:text/plain;base64,' + window.btoa(test)).attr("download", "file-" + d + ".html");
+            console.log("Save");  
+        }
+/*
+        saveAddedVariables = function () {
+            var d = new Date().toISOString().slice(0, 19).replace(/-/g, "");
+            var test = "test";
+            $("#saveChanges").attr("href", 'data:text/plain;base64,' + window.btoa(test)).attr("download", "file-" + d + ".html");
+            console.log("???");
+            console.log($(this));
+        };*/
+
+        function loadAddedVariables(file){
+            var reader = new FileReader();
+            console.log(file);
+            console.log(reader.readAsText(file));
+        }
+
         function start_graphing() {
             if (!tids.length) {
                 //$.pnotify({title: 'starting graphing'});
@@ -90,8 +274,79 @@
                     client.graphs[i].start();
                 };
                 tids.push(window.setInterval(client.redraw_graphs, 1000));
+                //console.log(tids);
             };
         };
+
+        function start_session_graphing(){
+            //if(!tids.length){
+                for(i in client.sessionGraph){
+                    client.sessionGraphs[i].start();
+                };
+                tids.push(window.setInterval(client.redraw_graphs, 1000));
+            //};
+        };
+
+        function start_individual_graphing(){
+            //if (!tids.length) {
+                console.log("started");
+                for (i in client.individual_graphs) {
+                    client.individual_graphs[i].start();
+                    console.log("start");
+                };
+                tids.push(window.setInterval(client.redraw_graphs, 1000));
+                //console.log(tids);
+           // };
+        }
+
+/*        function graph_individual_graph(client, type, start_time, data){
+            mworks.individual_graph(client, type, start_time, data).render();
+        }*/
+
+/*        function toggle_individual_graph(){
+            $("#individual_chart").toggle();
+        }
+
+        function toggle_session_graph(){
+            $('#session_chart').toggle();
+        }*/
+
+        function openAddedVariablesFileTree(){
+            $("#loadAddedVariablesFileTree").dialog('open');
+        }
+
+        function readSingleFile(e) {
+            var file = e.target.files[0];
+            if (!file) {
+                return;
+            }
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var contents = e.target.result;
+
+                var index = contents.indexOf("<p");
+                var variables = contents.substring(0, index);
+                $("#addedVariables").empty();
+                $("#addedVariables").append(variables);
+
+
+                contents = contents.substring(index);
+                var graphindex = contents.indexOf("</p>");
+                var graphVariables = contents.substring(contents.indexOf(">") + 1, graphindex);
+                console.log(graphVariables);
+                var graphVariablesArray = graphVariables.split(",");
+                client.add_graph(graphVariablesArray, "stacked");
+
+                contents = contents.substring(graphindex + 4);
+                var reportIndex = contents.indexOf("</p>");
+                var reportVariables = contents.substring(contents.indexOf(">") + 1, reportIndex);
+                console.log(reportVariables);
+                var reportVariablesArray = reportVariables.split(",");
+                reports.vars = reportVariablesArray;
+            };
+            reader.readAsText(file);
+        }
+
 
         function stop_graphing() {
             //$.pnotify({title: 'stopping graphing'});
@@ -124,6 +379,72 @@
         };
 
 
+
+        function makeCheckboxes(){
+            console.log('running');
+            console.log($("#VariablesToBeReported").length);
+            if (document.getElementById("VariablesToBeReported").length == 0) {
+                for(i in client.vars()){
+                    var varName = client.vars()[i].name();
+                    $("#VariablesToBeReported").append("<input type = \"checkbox\" name = \"variablesToBeAdded\" value = \"" + varName + "\"> " + varName + "</input>");
+                    //option.text = client.vars()[i].name();
+                }
+                /*xmlhttp=new XMLHttpRequest();
+                xmlhttp.open("GET","cd_catalog.xml",false);*/
+            }
+        }
+
+
+        function saveReportVariables(){
+            var selected = [];
+            $("input:checkbox[name=variablesToBeAdded]:checked").each(function () {
+                selected.push($(this).val());
+            });
+
+            reports.vars = selected;
+            $("#VariablesToBeReported").hide();
+
+            
+            var variables = "";
+            for(i in reports.vars){
+                //console.log(reports.vars[i]);
+                variables = variables.concat(reports.vars[i]).concat(", ");
+                //console.log(variables);
+            }
+
+            $("#selectedVariables").text("Variables to be reported are: " + variables);
+
+        }
+
+        function editReportVariables(){
+            $("#VariablesToBeReported").show();
+        }
+
+        function makeGraphCheckboxes(){
+            if (document.getElementById("stack_graph_variables").length == 0) {
+                for(i in client.vars()){
+                    var varName = client.vars()[i].name();
+                    $("#stack_graph_variables").append("<input type = \"checkbox\" name = \"stack_graph_variables\" value = \"" + varName + "\"> " + varName + "</input>");
+                    //option.text = client.vars()[i].name();
+                }
+            }
+        }
+
+        function make_stacked_graph(){
+            var selected = [];
+            $("input:checkbox[name=stack_graph_variables]:checked").each(function () {
+                selected.push($(this).val());
+            });
+            console.log(selected);
+            client.add_graph(selected, "stacked");
+            $("#stack_graph_variables").hide();
+        }
+
+        function edit_stacked_graph(){
+            $("#stack_graph_variables").show();
+        }
+
+
         {% block head_js %}
         {% endblock %}
 
@@ -151,7 +472,8 @@
             });
 
             $('#filetree').fileTree({
-                root: '~/Repositories/coxlab/protocols',
+                //root: '~/Repositories/coxlab/new_protocols',
+                root: '~/Repositories/protocols',
                 script: "{{ url_for('filetree.sfiles') }}",
             }, function (file) {
                 $('#filetree').dialog('close');
@@ -163,6 +485,21 @@
                 autoOpen: false,
                 height: 400,
             });
+
+            $("#loadAddedVariablesFileTree").fileTree({
+                script: "{{ url_for('filetree.sfiles') }}",
+                multiFolder: false,
+
+            }, function (file){
+                $('#loadAddedVariablesFileTree').dialog('close');
+                loadAddedVariables(file);
+
+            });
+            $("#loadAddedVariablesFileTree").dialog({
+                autoOpen: false,
+            });
+
+            document.getElementById('loadAddedVariables').addEventListener('change', readSingleFile, false);
 
             reports.post_callback = function (result, msg) {
                 body = {
@@ -229,7 +566,7 @@
                 <li><a href='#tb_experiment'>Experiment</a></li>
                 <li><a href='#tb_variableset'>Variableset</a></li>
                 <li><a href='#tb_datafile'>Datafile</a></li>
-                <li><a href='#tb_report'>Report</a></li>
+                <li><a href='#tb_report' onclick = "makeCheckboxes()">Report</a></li>
             </ul>
             <!-- Connection -->
             <div id="tb_connection" class="tb_connection">
@@ -328,14 +665,20 @@
             </div>
             <div id="tb_report" class="tb_report">
                 User: <input data-bind="value: user"></input>
+                <form id = "VariablesToBeReported">
+
+                </form>
+                <p id = "selectedVariables"></p>
+                <button onclick = "saveReportVariables()">Save</button>
+                <button onclick = "editReportVariables()">Edit</button><br>
                 <button onclick="reports.report(client)">Publish Report</button>
             </div>
         </div> <!-- toolbar -->
         <div id="display" class="toolbar">
             <ul>
                 <li><a href='#disp_variables'>Variables</a></li>
-                <li><a href='#disp_controls'>Controls</a></li>
-                <li><a href='#disp_graphs'>Graphs</a></li>
+                <li><a href='#disp_controls' onclick = "makeVariableList()">Controls</a></li>
+                <li><a href='#disp_graphs' onclick = "makeIndividualGraphDropdown();makeGraphCheckboxes();">Graphs</a></li>
                 <li><a href='#disp_messages'>Messages</a></li>
                 <li><a href='#disp_notes'>Notes</a></li>
                 {% block display_menu %}
@@ -349,6 +692,8 @@
                     <tbody data-bind="foreach: vars">
                         <tr>
                             <td data-bind="text: name"></td>
+                            <!--todo:
+                                Figure the td out...bind variable with the two graphs-->
                             <td><input class="variable_edit" data-bind="value: latest_value"/></td>
                             <!-- <td data-bind="text: latest_value"</td> -->
                         </tr>
@@ -358,7 +703,33 @@
             <div id="disp_controls" class="disp_controls">
                 {% block display_controls %}
                 {% endblock %}
+                <div>
+                    <h1>Add variables</h1>
+                    <input type = "text" onkeypress="listVariables()" id = "addVariableInput"></input>
+                    <select id = "addedVariableType">
+                        <option value = "textBox" selected>Text box</option>
+                        <option value = "checkBox">Check box</option>
+                        <option value = "inc_dec">Tex box with increment/decrement</option>
+                    </select>
+                    <button onclick = "addNewVariable()">Add variable</button>
+                </div>
+                <div id = "addedVariables">
+
+                </div>
+
+                <div>
+                    <!-- <button onclick = "saveAddedVariables()" >Save</button> -->
+                    <a href="#" type = "button" onclick = "saveAddedVariables()" data-type = "button" id = "saveChanges">Save</a>
+                    <!-- <button onclick = "saveAsAddedVariables()">Save as...</button> -->
+                    <!--<button onclick = "openAddedVariablesFileTree()">Load</button>-->
+                </div>
+
+                <div>
+                    Load: <input type = "file" id = "loadAddedVariables"></input>
+                </div>
+
             </div>
+
             <div id="disp_graphs" class="disp_graphs">
                 <div>
                     <button class="control_button" title="start graphing"
@@ -372,10 +743,64 @@
                         onclick="store_reference()">Store Reference</button>
                     <span id="graph_status"></span>
                 </div>
+
+                <!--<div>
+                    <input id = "graphGeneral" type = "radio" name = "graphDataType" value = "general" onchange = "client.add_graph(['correct_lick', 'correct_ignore', 'bad_lick', 'bad_ignore'], 'stacked');" checked> General</input>
+                    <input type = "radio" name = "graphDataType" value = "session" onchange = "client.add_graph(['correct_lick', 'correct_ignore', 'bad_lick', 'bad_ignore'], 'stacked');"> Session</input>
+                </div>-->
+                    
+                <form id = "stack_graph_variables">
+                    
+                </form>
+                <button onclick = "make_stacked_graph();">Graph</button>
+                <button onclick = "edit_stacked_graph();">Edit</button>
+
                 <div id='chart_div'>
                     <svg id='chart'></svg>
                 </div>
+
+
+                <!--<div id = "disp_session_graph" class = "disp_controls">
+                    <form>
+                    </form>
+                    <button onclick = "toggle_session_graph();"> Hide / show session graph </button>
+
+                    <div id = "session_chart_div" style = "width : 100%">
+                        <svg id = "session_chart"></svg>
+                    </div>
+                </div>
+
+                <div id = "disp_individual_graph" class = "disp_controls">
+                    <form>
+                        <input type = "radio" name = "individual_graph" class = "control_button" title = "test" onclick = "graph_individual_graph(client, 'correct lick', 0, [null]);">correct lick</input>
+                        <input type = "radio" name = "individual_graph" class = "control_button" title = "test" onclick = "graph_individual_graph(client, 'correct ignore', 0, [null]);">correct ignore</input>
+                        <input type = "radio" name = "individual_graph" class = "control_button" title = "test" onclick = "graph_individual_graph(client, 'bad lick', 0, [null]);">bad lick</input>
+                        <input type = "radio" name = "individual_graph" class = "control_button" title = "test" onclick = "graph_individual_graph(client, 'bad ignore', 0, [null]);">bad ignore</input>
+                    </form>
+                    <button onclick = "toggle_individual_graph();"> Hide / show individual graph</button>
+                    <div id = "individual_chart" style = "width: 100%">
+                        
+                    </div>
+                </div>-->
+<!--                 <div>
+                    <button onclick = "makeDropdown();">Make dropdown </button>
+                </div> -->
+                <div>
+                    <select id = "variablesGraphDropdown">
+
+                    </select>
+                    <button onclick = "client.add_individual_graph()">Draw </button>
+                </div>
+                <div id = "individual_chart_div">
+                    <svg id = 'individual_chart'><svg>
+                </div>
+
+
+
             </div>
+
+            
+
             {% block display_items %}
             {% endblock %}
             <div id="disp_messages" class="disp_messages">

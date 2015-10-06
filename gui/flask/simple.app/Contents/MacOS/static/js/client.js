@@ -108,308 +108,6 @@ mworks.utils = (function ($) {
     return utils;
 }(jQuery));
 
-/*mworks.individual_graph = function (client, vars){
-    //type: which specific data is being graphed (also used as title)
-    //start_time: the leftmost of the graph
-    //data: an associated array of the data in the form of {x: value, y: value}
-    //more info can be found at: http://canvasjs.com/
-    order_individual_data = function(type){
-        var data = reports.vars[type];
-        return data;
-    }
-    data = order_individual_data(type);
-    var chart = new CanvasJS.Chart("individual_chart", 
-        {
-        title: {
-            //the title of the chart
-            text: type,
-            fontSize: 15,
-        },
-        animationEnabled: true,
-        axisX:{
-            interval:10,
-            labelAngle: -50,
-            minimum: start_time,
-        },
-        axisY:{
-            title: "percent",
-            interval: 10,
-            maximum: 100,
-        },
-        data:[
-        {
-            type: "area",
-            markerSize: 8,
-            dataPoints: data,        
-        }
-        ]
-
-    });
-    nv.utils.windowResize();
-
-    return chart;
-
-
-}*/
-
-/*mworks.sessionGraph = function(client, vars, type){
-    var sessionGraph = this;
-    sessionGraph.vars = vars;
-    sessionGraph.type = type;
-    sessionGraph.client = client;
-    sessionGraph.data = [];
-
-    sessionGraph.chart = null;
-
-    sessionGraph.build = function(){
-        for (i in vars){
-            sessionGraph.data.push({'key': vars[i], 'values': [], 'ref': 0});
-            client.varbyname(vars[i]).n = 100;//not sure what does this do
-        };
-
-        switch (graph.type) {
-            case 'stacked':
-                sessionGraph.chart = nv.models.stackedAreaChart()
-                    .x(function(d) {return d[0]})
-                    .y(function(d) {return d[1]});
-                sessionGraph.chart.xAxis.tickFormat(d3.format('i'));
-                sessionGraph.chart.yAxis.tickFormat(d3.format('i'));
-                break;
-            default:
-                throw "Unknown graph type: " + graph.type;
-                break;
-        };
-
-        nv.utils.windowResize(sessionGraph.chart.update);
-    };
-
-    sessionGraph.build();
-
-
-    sessionGraph.getvalue = function (di, index, with_ref) {
-        if (index >= graph.data[di]['values'].length) {
-            //console.log("di: " + di);
-            v = graph.data[di]['values'][graph.data[di]['values'].length - 1];
-            r = false;
-        } else {
-            v = graph.data[di]['values'][index];
-            r = true;
-        };
-        if (with_ref) {
-            return [r, [v[0], v[1] - graph.data[di]['ref']]];
-        } else {
-            //console.log([r,v]);
-            return [r, v];
-        };
-    };
-
-    sessionGraph.order_data = function (with_ref) {
-        // copy data
-        mi = 0;
-        inds = {};
-        cvs = {};
-        for (i in sessionGraph.data) {
-            vn = sessionGraph.data[i]['key']
-            vs = [];
-            v = sessionGraph.client.varbyname(vn);
-            evs = v.events();
-            for (vi in evs) {
-                // TODO value checking
-                vs.push([evs[vi].time, evs[vi].value]);
-            };
-            vs.sort(function(a, b) { return a[0] - b[0]; });
-            sessionGraph.data[i]['values'] = vs;
-            mi = Math.max(mi, vs.length);
-            //inds[sessionGraph.data[i]['key']] = 0;
-            inds[i] = 0;
-            cvs[i] = [];
-        };
-        // prep data
-        alldone = false;
-        rs = {};
-        values = {};
-        while (!alldone) {
-            // get values for all data
-            mt = Infinity;
-            mdi = 0;
-            for (di in inds) {
-                r = sessionGraph.getvalue(di, inds[di], with_ref);
-                rs[di] = r[0];
-                values[di] = r[1];
-                // find one with lowest time
-                if ((r[1][0] < mt) && (r[0])) {
-                    mt = r[1][0];
-                    mdi = di;
-                };
-            };
-            alldone = true;
-            for (i in rs) {
-                alldone = alldone && (!rs[i]);
-            };
-            if (alldone) {
-                break;
-            };
-            // match all others to that
-            for (di in inds) {
-                cvs[di].push([mt, values[di][1]]);
-            };
-            // increment that time for that one
-            inds[mdi] += 1;
-            alldone = true;
-            for (i in rs) {
-                alldone = alldone && (!rs[i]);
-            };
-        };
-
-        for (di in cvs) {
-            sessionGraph.data[di]['values'] = cvs[di];
-            sessionGraph.data[di]['values'].sort(function(a, b) { return a[0] - b[0] });
-        };
-    };
-
-    sessionGraph.redraw = function (with_ref) {
-        sessionGraph.order_data(with_ref);
-        d3.select('#session_chart')
-            .datum(sessionGraph.data)
-          .transition().duration(500);
-            //.call(sessionGraph.chart);
-        sessionGraph.chart.update();
-    };
-    
-    sessionGraph.start = function () {
-        sessionGraph.order_data();
-        d3.select('#session_chart')
-            .datum(sessionGraph.data)
-          .transition().duration(500)
-            .call(sessionGraph.chart);
-    };
-
-    return sessionGraph;
-};*/
-
-mworks.individual_graph = function (client, variable){
-    var individual_graph = this;
-    individual_graph.variable = variable;
-    console.log(variable);
-    //individual_graph.type =
-    individual_graph.client = client;
-    individual_graph.data = [];
-    individual_graph.chart = null;
-
-    individual_graph.build = function(){
-
-        individual_graph.data.push({"key": variable, "values": [], 'ref': 0});
-
-        client.varbyname(variable).n = 100;
-        individual_graph.chart = nv.models.lineChart()
-                                .x(function(d) { return d[0] })
-                                .y(function(d) { return d[1] });
-        //individual_graph.chart.useInteractiveGuideline(true);
-        individual_graph.chart.xAxis.axisLabel('').tickFormat(d3.format('i'));
-        individual_graph.chart.yAxis.axisLabel('').tickFormat(d3.format('i'));
-
-    };
-    individual_graph.build();
-
-    individual_graph.getvalue = function(index, with_ref){
-        if (index >= individual_graph.data[0]['values'].length) {
-            v = individual_graph.data[0]['values'][individual_graph.data[di]['values'].length - 1];
-            r = false;
-        } 
-        else {
-            v = individual_graph.data[0]['values'][index];
-            r = true;
-        };
-        if (with_ref) {
-            return [r, [v[0], v[1] - individual_graph.data[0]['ref']]];
-        } else {
-            //console.log([r,v]);
-            return [r, v];
-        };
-    } 
-
-    individual_graph.order_data = function(with_ref){
-        mi = 0;
-        inds = {};
-        cvs = {};
-        for (i in individual_graph.data) {
-            vn = individual_graph.data[i]['key']
-            vs = [];
-            v = individual_graph.client.varbyname(vn);
-            evs = v.events();
-            for (vi in evs) {
-                // TODO value checking
-                vs.push([evs[vi].time, evs[vi].value]);
-            };
-            vs.sort(function(a, b) { return a[0] - b[0]; });
-            individual_graph.data[i]['values'] = vs;
-            mi = Math.max(mi, vs.length);
-            //inds[individual_graph.data[i]['key']] = 0;
-            inds[i] = 0;
-            cvs[i] = [];
-        };
-        // prep data
-        alldone = false;
-        rs = {};
-        values = {};
-        while (!alldone) {
-            // get values for all data
-            mt = Infinity;
-            mdi = 0;
-            for (di in inds) {
-                r = individual_graph.getvalue(inds[di], with_ref);
-                rs[di] = r[0];
-                values[di] = r[1];
-                // find one with lowest time
-                if ((r[1][0] < mt) && (r[0])) {
-                    mt = r[1][0];
-                    mdi = di;
-                };
-            };
-            alldone = true;
-            for (i in rs) {
-                alldone = alldone && (!rs[i]);
-            };
-            if (alldone) {
-                break;
-            };
-            // match all others to that
-            for (di in inds) {
-                cvs[di].push([mt, values[di][1]]);
-            };
-            // increment that time for that one
-            inds[mdi] += 1;
-            alldone = true;
-            for (i in rs) {
-                alldone = alldone && (!rs[i]);
-            };
-        }
-
-    };
-
-    console.log(individual_graph.data);
-
-    individual_graph.redraw = function (with_ref) {
-        individual_graph.order_data(with_ref);
-        d3.select('#individual_chart')
-            .datum(individual_graph.data)
-          .transition().duration(500);
-            //.call(graph.chart); 
-        individual_graph.chart.update;
-    };
-    
-    individual_graph.start = function () {
-        individual_graph.order_data();
-        d3.select('#individual_chart')
-            .datum(individual_graph.data)
-          .transition().duration(500)
-            .call(individual_graph.chart);
-    };
-
-    return individual_graph;
-}
-
-
 
 mworks.graph = function (client, vars, type) {
     var graph = this;
@@ -417,38 +115,19 @@ mworks.graph = function (client, vars, type) {
     graph.type = type;
     graph.client = client;
     graph.data = [];
-
-    //The graph's data is in the form of an array of arrays. 
-    //The key is the name of the data, i.e. correct_ignore, bad_lick, etc.
-    //values is an array of array. It contains a certain number of arrays, each has length of 2.
-    //The 0th element of the array is the x value, the 1th element of the array is the y value
-    //not sure what ref is, the default value seems to be 0
-
     //graph.updating = false;
 
     //graph.gid = null;
     graph.chart = null;
 
-/*    if(! $("#graphGeneral").is(":checked")){
-        for(i = 0; i < vars.length; i++){
-            vars[i] = "session_".concat(vars[i]);
-        }
-    }*/
-
-    console.log(vars);
-
     graph.build = function () {
         // setup data
         for (i in vars) {
             graph.data.push({'key': vars[i], 'values': [], 'ref': 0});
-
             client.varbyname(vars[i]).n = 100;
-            //console.log(client.varbyname(vars[i]).n);
         };
 
-        //console.log("graph.data" + graph.data);
         // build chart
-        //explains how this works: http://nvd3.org/examples/stackedArea.html
         switch (graph.type) {
             case 'stacked':
                 graph.chart = nv.models.stackedAreaChart()
@@ -456,7 +135,6 @@ mworks.graph = function (client, vars, type) {
                     .y(function(d) { return d[1] });
                 graph.chart.xAxis.tickFormat(d3.format('i'));
                 graph.chart.yAxis.tickFormat(d3.format('i'));
-
                 break;
             default:
                 throw "Unknown graph type: " + graph.type;
@@ -470,9 +148,6 @@ mworks.graph = function (client, vars, type) {
 
     graph.getvalue = function (di, index, with_ref) {
         if (index >= graph.data[di]['values'].length) {
-            //console.log("di: " + di);
-            //console.log(graph.data)
-            //console.log(graph.data[di]);
             v = graph.data[di]['values'][graph.data[di]['values'].length - 1];
             r = false;
         } else {
@@ -482,7 +157,6 @@ mworks.graph = function (client, vars, type) {
         if (with_ref) {
             return [r, [v[0], v[1] - graph.data[di]['ref']]];
         } else {
-            //console.log([r,v]);
             return [r, v];
         };
     };
@@ -557,7 +231,7 @@ mworks.graph = function (client, vars, type) {
             .datum(graph.data)
           .transition().duration(500);
             //.call(graph.chart);
-        graph.chart.update;
+        graph.chart.update();
     };
     
     graph.start = function () {
@@ -693,11 +367,6 @@ mworks.client = (function () {
     client.graphs = [];
     client.graph_ref = ko.observable(true);
 
-    client.sessionGraphs = [];
-    client.sessionGraph_ref = ko.observable(true);
-
-    client.individual_graphs = [];
-
     client.state = ko.observable(undefined);
 
     client.notes = ko.observableArray();
@@ -706,7 +375,7 @@ mworks.client = (function () {
     client.message_verbosity = ko.observable(0);
     client.message_error_verbosity = ko.observable(1);
 
-    client.host = ko.observable("");    
+    client.host = ko.observable("");
     client.port = ko.observable(19989);
     client.user = ko.observable("");
     client.startserver = ko.observable(false);
@@ -770,42 +439,39 @@ mworks.client = (function () {
 
     client.bind_variables = function (selector) {
         $(selector).each( function(index) {
-            if($(this).get(0).innerHTML.indexOf("<input")== -1 && $(this).get(0).innerHTML.indexOf("<button")== -1){
-                node = $(this).get(0);
-                vb = node.attributes['var-bind'];
-                if (vb.value.indexOf(':') === -1) {
-                    bt = 'value'; //bt: bind type
-                    vn = vb.value;
-                } else {
-                    tokens = vb.value.split(':');
-                    bt = tokens[0];
-                    vn = tokens[1];
-                };
-                // check if bt has associated value
-                if (bt.indexOf('=') === -1) {
-                    bv = 'client.varbyname("' + vn + '").latest_value()';
-                } else {
-                    tokens = bt.split('=');
-                    bt = tokens[0];
-                    bv = tokens[1]; //bv: bind variable
-                };
-                switch (bt) {
-                    case 'value':
-                        $(this).attr('data-bind', "with: client.varbyname('" + vn + "')");
-                        node.innerHTML = "<input class='control_input' value='' title='" + vn + "' data-bind='value: latest_value'/>" + node.innerHTML;
-                        break;
-                    case 'check':
-                        $(this).attr('data-bind', "with: client.varbyname('" + vn + "')");
-                        node.innerHTML = "<input class='control_check' type='checkbox' title='" + vn + "' value='' data-bind='checked: latest_value'/>" + node.innerHTML;
-                        break;
-                    case 'button':
-                        node.innerHTML = '<button class="control_button" title="' + vn + '" onclick="client.send_event(' + "'" + vn + "', " + bv + ')">' + vn + '=' + bv + "</button>";
-                        break;
-                    default:
-                        client.throw("Invalid var-bind type: " + bt);
-                };
-            }
-            
+            node = $(this).get(0);
+            vb = node.attributes['var-bind'];
+            if (vb.value.indexOf(':') === -1) {
+                bt = 'value';
+                vn = vb.value;
+            } else {
+                tokens = vb.value.split(':');
+                bt = tokens[0];
+                vn = tokens[1];
+            };
+            // check if bt has associated value
+            if (bt.indexOf('=') === -1) {
+                bv = 'client.varbyname("' + vn + '").latest_value()';
+            } else {
+                tokens = bt.split('=');
+                bt = tokens[0];
+                bv = tokens[1];
+            };
+            switch (bt) {
+                case 'value':
+                    $(this).attr('data-bind', "with: client.varbyname('" + vn + "')");
+                    node.innerHTML = "<input class='control_input' value='' title='" + vn + "' data-bind='value: latest_value'/>" + node.innerHTML;
+                    break;
+                case 'check':
+                    $(this).attr('data-bind', "with: client.varbyname('" + vn + "')");
+                    node.innerHTML = "<input class='control_check' type='checkbox' title='" + vn + "' value='' data-bind='checked: latest_value'/>" + node.innerHTML;
+                    break;
+                case 'button':
+                    node.innerHTML = '<button class="control_button" title="' + vn + '" onclick="client.send_event(' + "'" + vn + "', " + bv + ')">' + vn + '=' + bv + "</button>";
+                    break;
+                default:
+                    client.throw("Invalid var-bind type: " + bt);
+            };
         });
     };
 
@@ -1385,29 +1051,8 @@ mworks.client = (function () {
     };
 
     client.add_graph = function (vars, type) {
-        stop_graphing();
-        //client.graphs.length = 0;
-
-            client.graphs.push(new mworks.graph(client, vars, type));
-
-        
-        start_graphing();
-/*        console.log('does this push?');
-        console.log(vars);*/
+        client.graphs.push(new mworks.graph(client, vars, type));
     };
-
-
-    client.add_individual_graph = function(){
-        var variable = $( "#variablesGraphDropdown option:selected").text();
-        console.log(variable);
-        client.individual_graphs.push(new mworks.individual_graph(client, variable));
-        console.log('started')
-        start_individual_graphing();
-    }
-
-/*    client.add_individual_graph = function (vars, type){
-        mworks.individual_graph(cleint, vars, type);
-    }//work on this*/
 
     client.redraw_graphs = function () {
         for (i in client.graphs) {

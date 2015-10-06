@@ -37,7 +37,7 @@
         $(document).ready(function () {
             $('#tabs').tabs();
             $('#filetree').fileTree({
-                root: '~/Repositories',
+                root: '~/Repositories/coxlab/new_protocols',
                 script: "{{ url_for('filetree.sfiles') }}",
             }, function (file) {
                 $('#filetree').dialog('close');
@@ -78,8 +78,6 @@
             };
 
             ko.applyBindings('body');
-
-
         });
     </script>
 </head>
@@ -91,27 +89,7 @@ Two tabs
 - edit/create
     - all options
 -->
-<!--
- Javascript libraries used in this project:
- - Jquery:
-    -Looks like:
-        $().somefunction();
-        $.somefunction();
-    -Documentation and tutorial can be found at: https://api.jquery.com/
- - Knockout
-    - Looks like:
-        data-bind = " : "
-        ko.somefunction();
-    - Documentation and tutorial can be found at: http://knockoutjs.com/documentation/introduction.html
- 
- Templates used:
-- Django template language
-    - Documentation and tutorial can be found at: https://docs.djangoproject.com/en/1.7/topics/templates/
- 
-
- -->
 <body data-bind="with: colony">
-    
     <div id="tabs">
         <ul>
             <li><a href='#animals'>Animals</a></li>
@@ -173,7 +151,6 @@ Two tabs
                                 data-bind="checked: autostart"></input></td></tr>
                     </tbody>
                 </table>
-                
                 <br />
                 <a href="#" data-bind="click: $parent.remove_animal">Remove/Delete Animal</a><br />
                 <br />
@@ -182,6 +159,5 @@ Two tabs
         </div>
     </div>
     <div id="filetree" title="Select a file"></div>
-
 </body>
 </html>

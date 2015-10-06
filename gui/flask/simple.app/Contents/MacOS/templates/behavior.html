@@ -19,9 +19,6 @@
         .client {
             width: 75%;
         }
-        .ui-pnotify {
-            top: 40%;
-        }
     </style>
 {% endblock %}
 
@@ -47,8 +44,6 @@
             //client.after_codec = function () {
                 client.apply_binding('#disp_controls');
                 client.add_graph(['correct_lick', 'correct_ignore', 'bad_lick', 'bad_ignore'], 'stacked');
-
-
             });
 {% endblock %}
 
@@ -62,7 +57,7 @@
                 <div var-bind="button=500:lick_input">Trigger lick_input</div>
                 <div var-bind="button=0:lick_input">Zero lick_input</div>
                 <div var-bind="button=1000:lick_input">Max lick_input</div>
-                <div var-bind="check:flag_head_sensing">Head Sensing</div><!--error report-->
+                <div var-bind="check:flag_head_sensing">Head Sensing</div>
                 <h1 class="control_heading">Basics</h1>
                 <div class="multicolumn_block">
                     <div class="control_column">
